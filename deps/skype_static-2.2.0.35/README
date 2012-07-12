@@ -1,0 +1,129 @@
+Skype for Linux 2.2 README
+
+INSTALLATION
+============
+
+If you are using one of the distribution-specific packages, simply run the
+"skype" executable.  KDE users should find a launcher for Skype in their
+Internet menu if Skype has been installed through one of these packages.
+
+If you are using the dynamic and statically linked generic versions, you
+will need to choose a path for Skype to exist in.  We recommend copying the
+skype binary to /usr/bin and installing sounds/, lang/ and avatars/ into
+the /usr/share/skype directory.
+
+KNOWN ISSUES
+============
+
+General
+
+  * Logging out and in may cause Skype to crash.
+
+  * On Debian amd64 version Skype crashes on startup with the message: 
+    "Inconsistency detected by ld.so: dl-open.c: 623: _dl_open: Assertion 
+    `_dl_debug_initialize (0, args.nsid)->r_state == RT_CONSISTENT' failed!"
+    This seems to be Debian only issue with 32 bit PulseAudio libraries being 
+    installed even if PulseAudio is not active, a workaround can be:
+    - Debian Lenny: 
+      sudo chmod a-r /usr/lib32/libpulse{-simple.so.0.0.1,.so.0.4.1}
+    - Debian Squeeze:
+      sudo chmod a-r /usr/lib32/libpulse{-simple.so.0.0.2,.so.0.8.0,common-0.9.15.so}
+
+  * On some amd64 distributions avatars are not showing, this is a problem 
+    with 32-bits emulation Qt library. Qt tries to find its image format 
+    plugins, but finds a 64-bits version instead and fails to load it.
+    A workaround is to specify a plugin path when launching skype like this:
+    - Ubuntu 64 bit: install "ia32-libs" package and launch Skype with: 
+      QT_PLUGIN_PATH=/usr/lib32/qt4/plugins skype
+    - Arch 64 bit (with 32 bit chroot installed in /opt/arch32): 
+      QT_PLUGIN_PATH=/opt/arch32/usr/lib/qt/plugins skype
+    - Other distributions might have a different path.
+
+Audio
+
+  * If you have a normal sound card, we recommend using the Default sound 
+    device for now. Sound output to hw: specific or plughw: specific devices 
+    may not work for all sound cards, or may result in single-channel 
+    playback or loss of sound mixing support on your system.
+
+Chats
+
+  * Selections behaviour is unpredictable in right-to-left languages.
+
+File Transfers
+
+  * There is currently no File Overwrite confirmation dialog.
+    - Files will be automatically renamed currently to avoid overwriting.
+
+Options Dialog
+
+  * Changing between Options screens without saving could lose your new 
+    options.
+    Options are only currently saved on a screen by screen basis. There is 
+    currently no warning when you try to change options screens or exit the 
+    options dialog with unsaved changes.
+
+  * When PulseAudio is enabled in the audio settings, only that specific entry
+     will be available; to change the settings, use the PulseAudio manager 
+     tool that is bundled with your distribution.
+
+Video
+
+  * Sometimes receiving video shows a white square on top-left part of the 
+    window.
+
+  * If your camera capture is showing a green, scrambled or black image,
+    this workaround may help:
+    - Ubuntu 32 bit: install "libv4l-0" package and launch Skype with: 
+      LD_PRELOAD=/usr/lib/libv4l/v4l2convert.so skype
+    - Ubuntu 64 bit: install "lib32v4l-0" package and launch Skype with: 
+      LD_PRELOAD=/usr/lib32/libv4l/v4l2convert.so skype
+    - Other distributions might have the same library, but may have a 
+      different path.
+
+  * Webcam problems when trying to send video from a Logitech camera and/or 
+    the error message 'Failed to query UVC control' in the console and syslog.
+    Visit http://www.quickcamteam.net/documentation/faq/logitech-webcam-linux-usb-incompatibilities
+    for the suggested fix.
+
+HOTKEYS
+=======
+Main Window:
+  Ctrl+E                Switch between Events History and Contact List
+  Ctrl+U                Show/Hide Offline Contacts
+  Ctrl+W                Hide Main Skype Window
+  Ctrl+O                Open Skype Options
+  Ctrl+Q                Quit Skype
+
+Chat Window:
+  Ctrl+F                Find/Search this Chat
+  F3/Shift-F3           Find Next/Previous Match (use after Ctrl+F)
+  Ctrl+W                Close/Hide Chat Window
+
+Quickfilter:
+  F6                    Jump to Quickfilter
+  Escape                Clear Quickfilter
+
+COMMAND-LINE OPTIONS
+====================
+
+  --dbpath=<path>       Specify an alternative path to store Skype data files
+                        Default: ~/.Skype
+  --resources=<path>    Specify a path where Skype can find its resource files
+                        Default: /usr/share/skype
+  --disable-api         Disable initialisation of the Skype Public API
+
+  --pipelogin           Command line login. 
+                        "echo username password | skype --pipelogin"
+  --version             Display version information
+
+SUPPORT
+=======
+
+You can obtain support from the community via our online forums:
+
+http://forum.skype.com/index.php?showforum=18
+
+If you find a bug, this can be filed in our online bug tracking system:
+
+https://developer.skype.com/jira/browse/SCL
