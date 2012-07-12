@@ -1,0 +1,87 @@
+Skype + Python = Skype4Py
+Чулан
+В этой статье я хотел бы рассказать о своем знакомстве с замечательным расширением для Skype API — Skype4Py. Используя его, можно собственно подключиться к скайпу и, написав пару строк кода, осуществить то, чего не сделали разработчики.
+
+Где-то месяца два назад я нашел на гуглокоде проект под названием moc-tray. Представлял он из себя программу, написанную на gtk2-perl, смысл которой висеть в трее и выдавать контекстное меню для доступа к основному функционалу прекрасного консольного плеера mocp. Решил я побаловаться и сделать отображение текущей песни в качестве статуса в скайпе.
+Сказано — сделано.
+Строка в перловой программе для запуска в бекграунде питоновского скрипта-статусоустановочника — и готово. А, ну и сам скрипт:
+
+#!/usr/bin/env python
+# Skymoc.
+#
+# Python script to show current song title in skype status
+import time
+import commands
+import Skype4Py
+
+# Две строки, которые избавляют от ошибки декодирования кириллицы
+# ASCII decoding error: ordinal not in range(128)
+# Хотя локаль по-умолчанию в системе стоит en_US.UTF-8
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
+# Callback на аттач к скайпу
+def OnAttach(status):
+    print "API Attachment status: %s" % skype.Convert.AttachmentStatusToText(status)
+
+    attached = False
+    # Пытаемся подключиться
+    if status == Skype4Py.apiAttachAvailable:
+        while not attached:
+            try:
+                # Если скрипт внесен в Public API allowed programs - коннектимся
+                skype.Attach()
+                attached = True
+            # Если нет - ждем, пока внесут, а пока идем лесом
+            except:
+                pass
+
+# Callback на смену статуса
+def OnUserStatus(status):
+    print "Current status: %s" % status
+
+skype = Skype4Py.Skype()
+# Регистрируем слушателей
+skype.OnAttachmentStatus = OnAttach
+skype.OnUserStatus = OnUserStatus
+
+print 'Connecting to skype..'
+# Подключаемся
+skype.Attach(Wait=False)
+profile = skype.CurrentUserProfile
+mocpSongTitle = ''
+while True:
+    # Каждые 5 секунд проверяем, не изменился ли трек
+    time.sleep(5)
+    (stat, currTitle) = commands.getstatusoutput('mocp -Q %title')
+    if currTitle != mocpSongTitle:
+        if currTitle != '':
+            mocpSongTitle = currTitle
+            profile.MoodText = mocpSongTitle
+        else: profile.MoodText = ':-)'
+
+
+Как видите — все довольно просто. Однажды потребовалось несколько другое. Был футбол, дома матч смотреть не хотелось, и в то же время нужно было получить важное чат-сообщение. Т. к. под мой телефон скайп-клиента еще не придумали, решено было выслать сообщение почтой (благо на телефоне E-mail клиент есть). Все решилось за 20 минут, установкой callback-а на входящее сообщение, в котором отправитель и текст шлется мне на почту:
+
+# При нотисе
+def OnNotify(var):
+print "OnNotify: %s" % var
+
+def OnMessageStatus(chat, status):
+    # Получили? Получили!
+    if status == 'RECEIVED':
+        # DynDns.org, port forwarding - и у меня дома хостинг!
+        prompt = os.popen('echo "%s" | mail -s "%s" %s' % (chat.Body, "%s via Skype" % chat.Sender.FullName, 'example@gmail.com'), 'w')
+        sent = prompt.close()
+        print "Sent status: %s" % sent
+
+skype = Skype4Py.Skype()
+skype.OnAttachmentStatus = OnAttach
+skype.OnNotify = OnNotify
+# Callback на входящее сообщение
+skype.OnMessageStatus = OnMessageStatus
+
+
+Ну вот, запустил два скайп-клиента, написал с одного на другой — и сообщение на почте. Правда, в тот вечер так я и не дождался того сообщения. Но зато на следующий день мне написали на почту :) Надеюсь, это письмо теперь изменит мою жизнь.
+
+Документация по Skype4Py: http://skype4py.sourceforge.net/doc/html/

@@ -1,0 +1,137 @@
+Автоответчик на звонки в Skype на Python из песочницы
+Skype*
+Привет! Данный топик будет посвящен написанию автоответчика для Skype, который будет принимать за вас звонки, проигрывать приветствие и записывать ответ. 
+
+Дано: Skype: 5.0.0.156, WinXPSP3, ActiveState Python 2.6.2.2.
+
+По идеи, работать должно и под *nix, но не тестировалось. Для взаимодействия со Skype через его API будем использовать Skype4py. Скачать можно тут, а с документацией ознакомиться здесь.
+
+Используя Skype4py, достаточно просто взаимодействовать со Skype, для нашей задачи необходимо только прописать свои обработчики различных событий. Обрабатывать события мы будем в нашем классе: 
+
+class AnsweringMachine:
+  def __init__(self):
+     self.FilesPath = os.getcwd() + '\\' #путь до нашего рабочего каталога файлов
+     self.WavFile = self.FilesPath + 'outofoffice.wav' #файл с ответом
+     self.IncomingCallsDir = self.FilesPath + 'incoming\\' #папка с аудиофайлами
+     self.time2wait = 30 #время ожидания звонка
+     self.callsanswered = dict() #словарь в котором мы будем хранить состояние принимаемых звонков.
+
+
+Обработчик OnCall, принимает входящие звонки, в том случае, если мы не отвечаем на звонок больше чем time2wait секунд. Заодно выводит дополнительную отладочную информацию. Вызов call.Answer взят в try..except для минимизации кода, если по честному, то там необходимо обработать различные ситуации, например, завершение вызова звонящим до поднятия трубки и другие. В WavFile хранится файл, который мы будем проигрывать всем звонящим:
+
+  def OnCall(self, call, status):
+     if status == Skype4Py.clsRinging and call.Type.startswith('INCOMING'):
+      print 'Incoming call from:', call.PartnerHandle 
+      time.sleep(self.time2wait)
+      if call.Duration == 0:
+        try:
+           call.Answer()
+        except:
+           pass
+        self.callsanswered[call.Id] = 'Answered'
+     else:
+       self.callsanswered[call.Id] = 'HumanAnswered'
+     if status == Skype4Py.clsInProgress and self.callsanswered[call.Id] == 'Answered':
+      self.callsanswered[call.Id] = 'Playing'
+      print ' playing ' + self.WavFile
+      call.InputDevice(Skype4Py.callIoDeviceTypeFile, self.WavFile)
+     if status in CallIsFinished:
+      print 'call ',status.lower()
+
+
+В OnInputStatusChanged мы будем отлавливать завершение проигрывания нашего файла и начнем запись голоса звонящего. Все записи будут складываться в подпапку с именем, совпадающим с ником пользователя, в папке IncomingCallsDir. Вызов call.InputDevice(Skype4Py.callIoDeviceTypeFile, None) прекращает воспроизведение нашего файла, в противном случае файл будет проигран несколько раз.
+
+  def OnInputStatusChanged(self, call, status):
+     if not status and call.InputDevice().has_key('FILE') and call.InputDevice()['FILE'] == self.WavFile and self.callsanswered[call.Id] == 'Playing':
+      self.callsanswered[call.Id] = 'Recording'
+      print ' play finished'
+      if not os.path.exists(self.IncomingCallsDir + call.PartnerHandle):
+         os.mkdir(self.IncomingCallsDir + call.PartnerHandle)
+      OutFile = self.IncomingCallsDir + call.PartnerHandle + '\\' + time.strftime("%Y-%m-%d_%H-%M-%S") + '.wav'
+      call.InputDevice(Skype4Py.callIoDeviceTypeFile, None)
+      print ' recording ' + OutFile
+      call.OutputDevice(Skype4Py.callIoDeviceTypeFile, OutFile)
+
+
+Вот собственно и все. Ниже весь код целиком:
+
+#!/usr/bin/python
+# -*- coding: cp1251 -*-
+
+import Skype4Py
+import sys, time, os
+
+CallIsFinished = set ([Skype4Py.clsFailed, Skype4Py.clsFinished, Skype4Py.clsMissed, Skype4Py.clsRefused, Skype4Py.clsBusy, Skype4Py.clsCancelled]);
+
+class AnsweringMachine:
+  def __init__(self):
+     self.FilesPath = os.getcwd() + '\\' #путь до нашего рабочего каталога файлов
+     self.WavFile = self.FilesPath + 'outofoffice.wav' #файл с ответом
+     self.IncomingCallsDir = self.FilesPath + 'incoming\\' #папка с аудиофайлами
+     self.time2wait = 30 #время ожидания звонка
+     self.callsanswered = dict() #словарь в котором мы будем хранить состояние принимаемых звонков.
+     if not os.path.exists(self.IncomingCallsDir):
+      os.mkdir(self.IncomingCallsDir) 
+  def OnCall(self, call, status):
+     if status == Skype4Py.clsRinging and call.Type.startswith('INCOMING'):
+      print 'Incoming call from:', call.PartnerHandle 
+      time.sleep(self.time2wait)
+      if call.Duration == 0:
+        try:
+          call.Answer()
+        except:
+          pass
+        self.callsanswered[call.Id] = 'Answered'
+      else:
+        self.callsanswered[call.Id] = 'HumanAnswered'
+
+     if status == Skype4Py.clsInProgress and self.callsanswered[call.Id] == 'Answered':
+      self.callsanswered[call.Id] = 'Playing'
+      print ' playing ' + self.WavFile
+      call.InputDevice(Skype4Py.callIoDeviceTypeFile, self.WavFile)
+     if status in CallIsFinished:
+      print 'call ',status.lower()
+
+  def OnInputStatusChanged(self, call, status):
+     if not status and call.InputDevice().has_key('FILE') and call.InputDevice()['FILE'] == self.WavFile and self.callsanswered[call.Id] == 'Playing':
+      self.callsanswered[call.Id] = 'Recording'
+      print ' play finished'
+      if not os.path.exists(self.IncomingCallsDir + call.PartnerHandle):
+         os.mkdir(self.IncomingCallsDir + call.PartnerHandle)
+      OutFile = self.IncomingCallsDir + call.PartnerHandle + '\\' + time.strftime("%Y-%m-%d_%H-%M-%S") + '.wav'
+      call.InputDevice(Skype4Py.callIoDeviceTypeFile, None)
+      print ' recording ' + OutFile
+      call.OutputDevice(Skype4Py.callIoDeviceTypeFile, OutFile)
+
+def OnAttach(status):
+  global skype
+  print 'Attachment status: ' + skype.Convert.AttachmentStatusToText(status)
+  if status == Skype4Py.apiAttachAvailable:
+     skype.Attach()
+
+def main():
+  global skype
+  am = AnsweringMachine()
+  skype = Skype4Py.Skype()
+  skype.OnAttachmentStatus = OnAttach
+  skype.OnCallStatus = am.OnCall
+  skype.OnCallInputStatusChanged = am.OnInputStatusChanged
+
+  if not skype.Client.IsRunning:
+     print 'Starting Skype..'
+     skype.Client.Start()
+
+  print 'Connecting to Skype process..'
+  skype.Attach()
+  print 'Waiting for incoming calls'
+  try:
+     while True:
+      time.sleep(1)
+  except:
+     pass
+
+if __name__ == '__main__':
+  main()
+
+
+UPD: исправил два бага в логике, автоответчик включался также при исходящих звонках и включался, в случае если трубка таки была поднята человеком.
