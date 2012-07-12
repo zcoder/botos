@@ -1,0 +1,11 @@
+
+[Desktop Entry]
+Type=Application
+Exec=xterm -e run.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name[ru_RU]=botos
+Name=botos
+Comment[ru_RU]=
+Comment=
